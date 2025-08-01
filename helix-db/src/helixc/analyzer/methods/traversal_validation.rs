@@ -316,14 +316,19 @@ pub(crate) fn validate_traversal<'a>(
                     ))
                 }
                 Some(VectorData::Embed(e)) => {
-                    match &e.value {
-                        EvaluatesToString::Identifier(i) => VecData::Embed(
+                    let value = match &e.value {
+                        EvaluatesToString::Identifier(i) => 
                             gen_identifier_or_param(original_query, i.as_str(), true, false),
-                        ),
-                        EvaluatesToString::StringLiteral(s) => {
-                            VecData::Embed(GeneratedValue::Literal(GenRef::Ref(s.clone())))
-                        }
-                    }
+                        EvaluatesToString::StringLiteral(s) => 
+                            GeneratedValue::Literal(GenRef::Ref(s.clone())),
+                    };
+                    let provider = e.provider.as_ref().map(|p| match p {
+                        EvaluatesToString::Identifier(i) => 
+                            gen_identifier_or_param(original_query, i.as_str(), true, false),
+                        EvaluatesToString::StringLiteral(s) => 
+                            GeneratedValue::Literal(GenRef::Ref(s.clone())),
+                    });
+                    VecData::Embed(value, provider)
                 }
                 _ => {
                     generate_error!(

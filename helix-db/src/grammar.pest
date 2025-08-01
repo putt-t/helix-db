@@ -178,7 +178,7 @@ search_vector = { "SearchV" ~ "<" ~ identifier_upper ~ ">" ~ "(" ~ vector_data ~
 bm25_search = { "SearchBM25" ~ "<" ~ identifier_upper ~ ">" ~ "(" ~ (string_literal | identifier) ~ "," ~ (integer | identifier) ~ ")" }
 pre_filter = { "PREFILTER" ~ "(" ~ (evaluates_to_bool | anonymous_traversal) ~ ")" }
 BatchAddV = { "BatchAddV" ~ "<" ~ identifier_upper ~ ">" ~ "(" ~ identifier ~ ")" }
-embed_method = { "Embed" ~ "(" ~ (identifier | string_literal) ~ ")" }
+embed_method = { "Embed" ~ "(" ~ (identifier | string_literal) ~ ("," ~ (identifier | string_literal))? ~ ")" }
 
 // ---------------------------------------------------------------------
 // Boolean operations

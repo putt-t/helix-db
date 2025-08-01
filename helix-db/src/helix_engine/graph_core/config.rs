@@ -36,6 +36,7 @@ pub struct Config {
     pub bm25: Option<bool>,
     pub schema: Option<String>,
     pub embedding_model: Option<String>,
+    pub embedding_providers: Option<sonic_rs::Value>,
     pub graphvis_node_label: Option<String>,
 }
 
@@ -65,6 +66,7 @@ impl Config {
             bm25: Some(bm25),
             schema,
             embedding_model,
+            embedding_providers: None,
             graphvis_node_label,
         }
     }
@@ -103,6 +105,27 @@ impl Config {
         "mcp": true,
         "bm25": true,
         "embedding_model": "text-embedding-ada-002",
+        "embedding_providers": {
+            "openai": {
+                "models": ["text-embedding-ada-002", "text-embedding-3-small", "text-embedding-3-large"],
+                "default_model": "text-embedding-ada-002"
+            },
+            "gemini": {
+                "models": ["gemini-embedding-001"],
+                "default_model": "gemini-embedding-001",
+                "default_task_type": "RETRIEVAL_DOCUMENT",
+                "task_types": [
+                    "SEMANTIC_SIMILARITY",
+                    "CLASSIFICATION", 
+                    "CLUSTERING",
+                    "RETRIEVAL_DOCUMENT",
+                    "RETRIEVAL_QUERY",
+                    "CODE_RETRIEVAL_QUERY",
+                    "QUESTION_ANSWERING",
+                    "FACT_VERIFICATION"
+                ]
+            }
+        },
         "graphvis_node_label": ""
     }
     "#
@@ -154,6 +177,7 @@ impl Default for Config {
             bm25: Some(true),
             schema: None,
             embedding_model: Some("text-embedding-ada-002".to_string()),
+            embedding_providers: None,
             graphvis_node_label: None,
         }
     }
@@ -223,6 +247,14 @@ impl fmt::Display for Config {
             "embedding_model: {},",
             match &self.embedding_model {
                 Some(model) => format!("Some(\"{model}\".to_string())"),
+                None => "None".to_string(),
+            }
+        )?;
+        writeln!(
+            f,
+            "embedding_providers: {},",
+            match &self.embedding_providers {
+                Some(providers) => format!("Some(sonic_rs::from_str(r#\"{}\"#).unwrap())", providers.to_string()),
                 None => "None".to_string(),
             }
         )?;

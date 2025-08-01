@@ -586,6 +586,7 @@ pub enum VectorData {
 pub struct Embed {
     pub loc: Loc,
     pub value: EvaluatesToString,
+    pub provider: Option<EvaluatesToString>,
 }
 
 #[derive(Debug, Clone)]
@@ -1385,32 +1386,55 @@ impl HelixParser {
                             data = Some(VectorData::Vector(self.parse_vec_literal(p)?));
                         }
                         Rule::embed_method => {
-                            data = Some(VectorData::Embed(Embed {
-                                loc: vector_data.loc(),
-                                value: match vector_data.clone().into_inner().next() {
-                                    Some(inner) => match inner.as_rule() {
-                                        Rule::identifier => EvaluatesToString::Identifier(
-                                            inner.as_str().to_string(),
-                                        ),
-                                        Rule::string_literal => EvaluatesToString::StringLiteral(
-                                            inner.as_str().to_string(),
-                                        ),
-                                        _ => {
-                                            return Err(ParserError::from(format!(
-                                                "Unexpected rule in AddV: {:?} => {:?}",
-                                                inner.as_rule(),
-                                                inner,
-                                            )));
-                                        }
-                                    },
-                                    None => {
+                            let mut inner_rules = vector_data.clone().into_inner();
+                            let value = match inner_rules.next() {
+                                Some(inner) => match inner.as_rule() {
+                                    Rule::identifier => {
+                                        EvaluatesToString::Identifier(inner.as_str().to_string())
+                                    }
+                                    Rule::string_literal => {
+                                        EvaluatesToString::StringLiteral(inner.as_str().to_string())
+                                    }
+                                    _ => {
                                         return Err(ParserError::from(format!(
                                             "Unexpected rule in AddV: {:?} => {:?}",
-                                            p.as_rule(),
-                                            p,
+                                            inner.as_rule(),
+                                            inner,
                                         )));
                                     }
                                 },
+                                None => {
+                                    return Err(ParserError::from(format!(
+                                        "Unexpected rule in AddV: {:?} => {:?}",
+                                        p.as_rule(),
+                                        p,
+                                    )));
+                                }
+                            };
+
+                            let provider = match inner_rules.next() {
+                                Some(inner) => match inner.as_rule() {
+                                    Rule::identifier => Some(EvaluatesToString::Identifier(
+                                        inner.as_str().to_string(),
+                                    )),
+                                    Rule::string_literal => Some(EvaluatesToString::StringLiteral(
+                                        inner.as_str().to_string(),
+                                    )),
+                                    _ => {
+                                        return Err(ParserError::from(format!(
+                                            "Unexpected rule in provider parameter: {:?} => {:?}",
+                                            inner.as_rule(),
+                                            inner,
+                                        )));
+                                    }
+                                },
+                                None => None, // Provider is optional
+                            };
+
+                            data = Some(VectorData::Embed(Embed {
+                                loc: vector_data.loc(),
+                                value,
+                                provider,
                             }));
                         }
                         _ => {
@@ -1469,32 +1493,55 @@ impl HelixParser {
                             data = Some(VectorData::Vector(self.parse_vec_literal(p)?));
                         }
                         Rule::embed_method => {
-                            data = Some(VectorData::Embed(Embed {
-                                loc: vector_data.loc(),
-                                value: match vector_data.clone().into_inner().next() {
-                                    Some(inner) => match inner.as_rule() {
-                                        Rule::identifier => EvaluatesToString::Identifier(
-                                            inner.as_str().to_string(),
-                                        ),
-                                        Rule::string_literal => EvaluatesToString::StringLiteral(
-                                            inner.as_str().to_string(),
-                                        ),
-                                        _ => {
-                                            return Err(ParserError::from(format!(
-                                                "Unexpected rule in SearchV: {:?} => {:?}",
-                                                inner.as_rule(),
-                                                inner,
-                                            )));
-                                        }
-                                    },
-                                    None => {
+                            let mut inner_rules = vector_data.clone().into_inner();
+                            let value = match inner_rules.next() {
+                                Some(inner) => match inner.as_rule() {
+                                    Rule::identifier => {
+                                        EvaluatesToString::Identifier(inner.as_str().to_string())
+                                    }
+                                    Rule::string_literal => {
+                                        EvaluatesToString::StringLiteral(inner.as_str().to_string())
+                                    }
+                                    _ => {
                                         return Err(ParserError::from(format!(
                                             "Unexpected rule in SearchV: {:?} => {:?}",
-                                            p.as_rule(),
-                                            p,
+                                            inner.as_rule(),
+                                            inner,
                                         )));
                                     }
                                 },
+                                None => {
+                                    return Err(ParserError::from(format!(
+                                        "Unexpected rule in SearchV: {:?} => {:?}",
+                                        p.as_rule(),
+                                        p,
+                                    )));
+                                }
+                            };
+
+                            let provider = match inner_rules.next() {
+                                Some(inner) => match inner.as_rule() {
+                                    Rule::identifier => Some(EvaluatesToString::Identifier(
+                                        inner.as_str().to_string(),
+                                    )),
+                                    Rule::string_literal => Some(EvaluatesToString::StringLiteral(
+                                        inner.as_str().to_string(),
+                                    )),
+                                    _ => {
+                                        return Err(ParserError::from(format!(
+                                            "Unexpected rule in provider parameter: {:?} => {:?}",
+                                            inner.as_rule(),
+                                            inner,
+                                        )));
+                                    }
+                                },
+                                None => None, // Provider is optional
+                            };
+
+                            data = Some(VectorData::Embed(Embed {
+                                loc: vector_data.loc(),
+                                value,
+                                provider,
                             }));
                         }
                         _ => {

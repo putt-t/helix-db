@@ -379,13 +379,20 @@ pub(crate) fn apply_graph_step<'a>(
                     let value = gen_identifier_or_param(original_query, i.as_str(), false, true);
                     VecData::Standard(value)
                 }
-                Some(VectorData::Embed(e)) => match &e.value {
-                    EvaluatesToString::Identifier(i) => {
-                        VecData::Embed(gen_identifier_or_param(original_query, i, false, true))
-                    }
-                    EvaluatesToString::StringLiteral(s) => {
-                        VecData::Embed(GeneratedValue::Literal(GenRef::Ref(s.clone())))
-                    }
+                Some(VectorData::Embed(e)) => {
+                    let value = match &e.value {
+                        EvaluatesToString::Identifier(i) => 
+                            gen_identifier_or_param(original_query, i, false, true),
+                        EvaluatesToString::StringLiteral(s) => 
+                            GeneratedValue::Literal(GenRef::Ref(s.clone())),
+                    };
+                    let provider = e.provider.as_ref().map(|p| match p {
+                        EvaluatesToString::Identifier(i) => 
+                            gen_identifier_or_param(original_query, i, false, true),
+                        EvaluatesToString::StringLiteral(s) => 
+                            GeneratedValue::Literal(GenRef::Ref(s.clone())),
+                    });
+                    VecData::Embed(value, provider)
                 },
                 _ => {
                     generate_error!(

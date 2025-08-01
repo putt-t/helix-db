@@ -418,7 +418,7 @@ impl<'a> McpTools<'a> for McpBackend {
     ) -> Result<Vec<TraversalVal>, GraphError> {
         let db = Arc::clone(&self.db);
 
-        let model = get_embedding_model(None, None, None)?;
+        let model = get_embedding_model(None, db.storage_config.embedding_model.as_deref(), None)?;
         let result = model.fetch_embedding(&query);
         let embedding = result?;
 
