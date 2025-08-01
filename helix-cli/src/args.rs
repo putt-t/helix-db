@@ -106,6 +106,9 @@ pub struct CheckCommand {
 pub struct InstallCommand {
     #[clap(short, long, help = "Install HelixDB from the development branch (considered unstable)")]
     pub dev: bool,
+    
+    #[clap(short, long, help = "Install HelixDB from local source directory")]
+    pub local: bool,
 }
 
 #[derive(Debug, Args)]

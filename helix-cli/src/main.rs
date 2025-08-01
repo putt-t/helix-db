@@ -492,38 +492,92 @@ async fn main() -> ExitCode {
                 }
             }
 
-            let mut runner = Command::new("git");
-            runner.arg("clone");
-            runner.arg("https://github.com/HelixDB/helix-db.git");
-            if command.dev {
-                runner.arg("--branch").arg("dev");
-            }
-            runner.current_dir(&repo_path);
+            if command.local {
+                use std::env;
+                let current_dir = env::current_dir().unwrap();
+                let local_helix_db_path = current_dir.join("helix-db");
+                let local_helix_container_path = current_dir.join("helix-container");
 
-            match runner.output() {
-                Ok(_) => {
-                    let home_dir = dirs::home_dir().unwrap();
+                if !local_helix_db_path.exists() || !local_helix_container_path.exists() {
                     println!(
-                        "{} {}",
-                        "Helix repo installed at".green().bold(),
-                        home_dir.join(".helix/repo/").to_string_lossy()
+                        "{}",
+                        "Local helix repo structure not found in current directory"
+                            .red()
+                            .bold()
                     );
-                    println!("|");
-                    println!("└── To get started, begin writing helix queries in your project.");
-                    println!("|");
-                    println!(
-                        "└── Then run `helix check --path <path-to-project>` to check your queries."
-                    );
-                    println!("|");
-                    println!(
-                        "└── Then run `helix deploy --path <path-to-project>` to build your queries."
-                    );
-                }
-                Err(e) => {
-                    println!("{}", "Failed to install Helix repo".red().bold());
-                    println!("|");
-                    println!("└── {e}");
+                    println!("└── Expected to find both: helix-db/ and helix-container/");
+                    println!("└── Current directory: {}", current_dir.display());
                     return ExitCode::FAILURE;
+                }
+                let mut copy_options = fs_extra::dir::CopyOptions::new();
+                copy_options.overwrite = true;
+                copy_options.copy_inside = true;
+
+                match fs_extra::dir::copy(&current_dir, &repo_path.join("helix-db"), &copy_options)
+                {
+                    Ok(_) => {
+                        let home_dir = dirs::home_dir().unwrap();
+                        println!(
+                            "{} {}",
+                            "Local Helix repo installed at".green().bold(),
+                            home_dir.join(".helix/repo/").to_string_lossy()
+                        );
+                        println!("|");
+                        println!(
+                            "└── To get started, begin writing helix queries in your project."
+                        );
+                        println!("|");
+                        println!(
+                            "└── Then run `helix check --path <path-to-project>` to check your queries."
+                        );
+                        println!("|");
+                        println!(
+                            "└── Then run `helix deploy --path <path-to-project>` to build your queries."
+                        );
+                    }
+                    Err(e) => {
+                        println!("{}", "Failed to copy local Helix repo".red().bold());
+                        println!("|");
+                        println!("└── {e}");
+                        return ExitCode::FAILURE;
+                    }
+                }
+            } else {
+                let mut runner = Command::new("git");
+                runner.arg("clone");
+                runner.arg("https://github.com/HelixDB/helix-db.git");
+                if command.dev {
+                    runner.arg("--branch").arg("dev");
+                }
+                runner.current_dir(&repo_path);
+
+                match runner.output() {
+                    Ok(_) => {
+                        let home_dir = dirs::home_dir().unwrap();
+                        println!(
+                            "{} {}",
+                            "Helix repo installed at".green().bold(),
+                            home_dir.join(".helix/repo/").to_string_lossy()
+                        );
+                        println!("|");
+                        println!(
+                            "└── To get started, begin writing helix queries in your project."
+                        );
+                        println!("|");
+                        println!(
+                            "└── Then run `helix check --path <path-to-project>` to check your queries."
+                        );
+                        println!("|");
+                        println!(
+                            "└── Then run `helix deploy --path <path-to-project>` to build your queries."
+                        );
+                    }
+                    Err(e) => {
+                        println!("{}", "Failed to install Helix repo".red().bold());
+                        println!("|");
+                        println!("└── {e}");
+                        return ExitCode::FAILURE;
+                    }
                 }
             }
         }
