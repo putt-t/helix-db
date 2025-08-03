@@ -105,26 +105,6 @@ impl EmbeddingModelImpl {
 
                 Ok((EmbeddingProvider::Gemini { task_type }, model_name))
             }
-            #[cfg(feature = "embed_gemini")]
-            Some(m)
-                if m == "gemini-embedding-001"
-                    || m.contains("SEMANTIC_SIMILARITY")
-                    || m.contains("RETRIEVAL_") =>
-            {
-                let (model_name, task_type) = if m.contains(':') {
-                    let parts: Vec<&str> = m.splitn(2, ':').collect();
-                    (
-                        parts[0].to_string(),
-                        parts.get(1).unwrap_or(&"RETRIEVAL_DOCUMENT").to_string(),
-                    )
-                } else {
-                    (
-                        "gemini-embedding-001".to_string(),
-                        "RETRIEVAL_DOCUMENT".to_string(),
-                    )
-                };
-                Ok((EmbeddingProvider::Gemini { task_type }, model_name))
-            }
             #[cfg(feature = "embed_openai")]
             Some(m) if m.starts_with("openai:") => {
                 let model_name = m
@@ -132,46 +112,13 @@ impl EmbeddingModelImpl {
                     .unwrap_or("text-embedding-ada-002");
                 Ok((EmbeddingProvider::OpenAI, model_name.to_string()))
             }
-            #[cfg(feature = "embed_openai")]
-            Some(m) if m.starts_with("text-embedding-ada") || m.starts_with("text-embedding-3") => {
-                Ok((EmbeddingProvider::OpenAI, m.to_string()))
-            }
             #[cfg(feature = "embed_local")]
             Some(m) if m == "local" => Ok((EmbeddingProvider::Local, "local".to_string())),
 
-            Some(m) => {
-                #[cfg(feature = "embed_openai")]
-                {
-                    Ok((EmbeddingProvider::OpenAI, m.to_string()))
-                }
-
-                #[cfg(all(feature = "embed_gemini", not(feature = "embed_openai")))]
-                {
-                    Ok((
-                        EmbeddingProvider::Gemini {
-                            task_type: "RETRIEVAL_DOCUMENT".to_string(),
-                        },
-                        m.to_string(),
-                    ))
-                }
-
-                #[cfg(all(
-                    feature = "embed_local",
-                    not(any(feature = "embed_openai", feature = "embed_gemini"))
-                ))]
-                {
-                    Ok((EmbeddingProvider::Local, "local".to_string()))
-                }
-
-                #[cfg(not(any(
-                    feature = "embed_openai",
-                    feature = "embed_gemini",
-                    feature = "embed_local"
-                )))]
-                {
-                    Err(GraphError::from("No embedding provider available"))
-                }
-            }
+            Some(m) => Err(GraphError::from(format!(
+                "Unknown embedding model '{}'. Please use 'openai:', 'gemini:', or 'local' prefix",
+                m
+            ))),
             None => {
                 #[cfg(feature = "embed_openai")]
                 {
