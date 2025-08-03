@@ -4,14 +4,29 @@ use axum::body::Body;
 use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use serde::Deserialize;
-use sonic_rs::{json, JsonValueTrait};
+use sonic_rs::{JsonValueTrait, json};
 use tracing::info;
 
-use crate::helix_gateway::gateway::AppState;
-use crate::helix_gateway::router::router::{Handler, HandlerSubmission, HandlerInput};
 use crate::helix_engine::storage_core::graph_visualization::GraphVisualization;
 use crate::helix_engine::types::GraphError;
+use crate::helix_engine::vector_core::hnsw::HNSW;
+use crate::helix_gateway::gateway::AppState;
+use crate::helix_gateway::router::router::{Handler, HandlerInput, HandlerSubmission};
 use crate::protocol::{self, request::RequestType};
+use crate::utils::items::{Edge, Node};
+use heed3::RoTxn;
+
+// get top nodes by cardinality (with limit, max 300):
+// curl "http://localhost:PORT/nodes_edges?limit=50"
+
+// get top 100 nodes with most connections and include a specific node property as label
+// curl "http://localhost:PORT/nodes_edges?limit=100&node_label=name"
+
+// get everything (no limit)
+// curl "http://localhost:PORT/nodes_edges"
+
+// get everything with a specific node property as label
+// curl "http://localhost:PORT/nodes_edges?node_label=name"
 
 #[derive(Deserialize)]
 pub struct NodesEdgesQuery {
@@ -56,8 +71,14 @@ pub fn nodes_edges_inner(input: &HandlerInput) -> Result<protocol::Response, Gra
     let (limit, node_label) = if !input.request.body.is_empty() {
         match sonic_rs::from_slice::<sonic_rs::Value>(&input.request.body) {
             Ok(params) => (
-                params.get("limit").and_then(|v| v.as_u64()).map(|v| v as usize),
-                params.get("node_label").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                params
+                    .get("limit")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize),
+                params
+                    .get("node_label")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             ),
             Err(_) => (None, None),
         }
@@ -65,19 +86,95 @@ pub fn nodes_edges_inner(input: &HandlerInput) -> Result<protocol::Response, Gra
         (None, None)
     };
 
-    let json_result = db.nodes_edges_to_json(&txn, limit, node_label)?;
+    let json_result = if limit.is_some() {
+        db.nodes_edges_to_json(&txn, limit, node_label)?
+    } else {
+        get_all_nodes_edges_json(&db, &txn, node_label)?
+    };
+
     let db_stats = db.get_db_stats_json(&txn)?;
 
+    let vectors_result = db
+        .vectors
+        .get_all_vectors(&txn, None)
+        .map(|vecs| {
+            let vectors_json: Vec<sonic_rs::Value> = vecs
+                .iter()
+                .map(|v| {
+                    json!({
+                        "id": v.id.to_string(),
+                        "level": v.level,
+                        "distance": v.distance,
+                        "data": v.data,
+                        "dimension": v.data.len()
+                    })
+                })
+                .collect();
+            sonic_rs::to_string(&vectors_json).unwrap_or_else(|_| "[]".to_string())
+        })
+        .unwrap_or_else(|_| "[]".to_string());
+
     let combined = format!(
-        r#"{{"data": {}, "stats": {}}}"#,
-        json_result,
-        db_stats
+        r#"{{"data": {}, "vectors": {}, "stats": {}}}"#,
+        json_result, vectors_result, db_stats
     );
 
     Ok(protocol::Response {
         body: combined.into_bytes(),
         fmt: Default::default(),
     })
+}
+
+fn get_all_nodes_edges_json(
+    db: &Arc<crate::helix_engine::storage_core::storage_core::HelixGraphStorage>,
+    txn: &RoTxn,
+    node_label: Option<String>,
+) -> Result<String, GraphError> {
+    use sonic_rs::json;
+
+    let mut nodes = Vec::new();
+    let node_iter = db.nodes_db.iter(txn)?;
+    for result in node_iter {
+        let (id, value) = result?;
+        let id_str = id.to_string();
+
+        let mut json_node = json!({
+            "id": id_str.clone(),
+            "title": id_str.clone()
+        });
+
+        if let Some(prop) = &node_label {
+            let node = Node::decode_node(&value, id)?;
+            if let Some(props) = node.properties {
+                if let Some(prop_value) = props.get(prop) {
+                    json_node["label"] = sonic_rs::to_value(&prop_value.to_string())
+                        .unwrap_or_else(|_| sonic_rs::Value::from(""));
+                }
+            }
+        }
+        nodes.push(json_node);
+    }
+
+    let mut edges = Vec::new();
+    let edge_iter = db.edges_db.iter(txn)?;
+    for result in edge_iter {
+        let (id, value) = result?;
+        let edge = Edge::decode_edge(&value, id)?;
+
+        edges.push(json!({
+            "from": edge.from_node.to_string(),
+            "to": edge.to_node.to_string(),
+            "title": id.to_string(),
+            "id": id.to_string()
+        }));
+    }
+
+    let result = json!({
+        "nodes": nodes,
+        "edges": edges
+    });
+
+    sonic_rs::to_string(&result).map_err(|e| GraphError::New(e.to_string()))
 }
 
 inventory::submit! {
