@@ -17,16 +17,16 @@ use crate::utils::items::{Edge, Node};
 use heed3::RoTxn;
 
 // get top nodes by cardinality (with limit, max 300):
-// curl "http://localhost:PORT/nodes_edges?limit=50"
+// curl "http://localhost:PORT/nodes-edges?limit=50"
 
 // get top 100 nodes with most connections and include a specific node property as label
-// curl "http://localhost:PORT/nodes_edges?limit=100&node_label=name"
+// curl "http://localhost:PORT/nodes-edges?limit=100&node_label=name"
 
 // get everything (no limit)
-// curl "http://localhost:PORT/nodes_edges"
+// curl "http://localhost:PORT/nodes-edges"
 
 // get everything with a specific node property as label
-// curl "http://localhost:PORT/nodes_edges?node_label=name"
+// curl "http://localhost:PORT/nodes-edges?node_label=name"
 
 #[derive(Deserialize)]
 pub struct NodesEdgesQuery {
