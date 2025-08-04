@@ -13,6 +13,7 @@ use crate::helix_engine::vector_core::hnsw::HNSW;
 use crate::helix_gateway::gateway::AppState;
 use crate::helix_gateway::router::router::{Handler, HandlerInput, HandlerSubmission};
 use crate::protocol::{self, request::RequestType};
+use crate::utils::id::ID;
 use crate::utils::items::{Edge, Node};
 use heed3::RoTxn;
 
@@ -132,11 +133,12 @@ fn get_all_nodes_edges_json(
 ) -> Result<String, GraphError> {
     use sonic_rs::json;
 
-    let mut nodes = Vec::new();
+    let nodes_length = db.nodes_db.len(txn)?;
+    let mut nodes = Vec::with_capacity(nodes_length as usize);
     let node_iter = db.nodes_db.iter(txn)?;
     for result in node_iter {
         let (id, value) = result?;
-        let id_str = id.to_string();
+        let id_str = ID::from(id).stringify();
 
         let mut json_node = json!({
             "id": id_str.clone(),
@@ -155,17 +157,19 @@ fn get_all_nodes_edges_json(
         nodes.push(json_node);
     }
 
-    let mut edges = Vec::new();
+    let edges_length = db.edges_db.len(txn)?;
+    let mut edges = Vec::with_capacity(edges_length as usize);
     let edge_iter = db.edges_db.iter(txn)?;
     for result in edge_iter {
         let (id, value) = result?;
         let edge = Edge::decode_edge(&value, id)?;
 
+        let id_str = ID::from(id).stringify();
         edges.push(json!({
-            "from": edge.from_node.to_string(),
-            "to": edge.to_node.to_string(),
-            "title": id.to_string(),
-            "id": id.to_string()
+            "from": ID::from(edge.from_node).stringify(),
+            "to": ID::from(edge.to_node).stringify(),
+            "title": id_str.clone(),
+            "id": id_str
         }));
     }
 
