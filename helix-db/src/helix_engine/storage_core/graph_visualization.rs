@@ -10,6 +10,7 @@ use std::{
     collections::{BinaryHeap, HashMap},
     sync::Arc,
 };
+use uuid;
 
 /// Set of functions to access the nodes and edges stored to export to json
 pub trait GraphVisualization {
@@ -294,7 +295,8 @@ impl HelixGraphStorage {
         top_nodes
             .iter()
             .try_for_each(|(id, out_edges, _in_edges)| {
-                let mut json_node = json!({ "id": id.to_string(), "title": id.to_string() });
+                let id_str = uuid::Uuid::from_u128(*id).to_string();
+                let mut json_node = json!({ "id": id_str.clone(), "title": id_str.clone() });
                 if let Some(prop) = &node_prop {
                     let mut node = self
                         .nodes_db
@@ -302,17 +304,15 @@ impl HelixGraphStorage {
                         .prefix_iter(txn, id)
                         .unwrap();
                     if let Some((_, data)) = node.next().transpose().unwrap() {
-                        let node = Node::decode_node(data.decode().unwrap(), *id)?;
-                        let props = node.properties.as_ref().ok_or_else(|| {
-                            GraphError::New(format!("no properties for node {id}"))
-                        })?;
-                        let prop_value = props.get(prop).ok_or_else(|| {
-                            GraphError::New(format!("property {prop} not found for node {id}"))
-                        })?;
-                        json_node
-                            .as_object_mut()
-                            .ok_or_else(|| GraphError::New("invalid JSON object".to_string()))?
-                            .insert("label", json!(prop_value));
+                        if let Ok(node) = Node::decode_node(data.decode().unwrap(), *id) {
+                            if let Some(props) = node.properties.as_ref() {
+                                if let Some(prop_value) = props.get(prop) {
+                                    if let Some(obj) = json_node.as_object_mut() {
+                                        obj.insert("label", json!(prop_value));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -320,10 +320,12 @@ impl HelixGraphStorage {
                 out_edges
                     .iter()
                     .for_each(|(edge_id, from_node_id, to_node_id)| {
+                        let edge_id_str = uuid::Uuid::from_u128(*edge_id).to_string();
                         edges.push(json!({
-                            "from": from_node_id.to_string(),
-                            "to": to_node_id.to_string(),
-                            "title": edge_id.to_string(),
+                            "from": uuid::Uuid::from_u128(*from_node_id).to_string(),
+                            "to": uuid::Uuid::from_u128(*to_node_id).to_string(),
+                            "title": edge_id_str.clone(),
+                            "id": edge_id_str
                         }));
                     });
 
