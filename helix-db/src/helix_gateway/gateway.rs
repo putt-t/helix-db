@@ -14,6 +14,7 @@ use crate::helix_engine::graph_core::graph_core::HelixGraphEngineOpts;
 use crate::helix_gateway::graphvis;
 use crate::helix_gateway::introspect_schema::introspect_schema_handler;
 use crate::helix_gateway::node_connections::node_connections_handler;
+use crate::helix_gateway::node_details::node_details_handler;
 use crate::helix_gateway::nodes_by_label::nodes_by_label_handler;
 use crate::helix_gateway::nodes_edges::nodes_edges_handler;
 use crate::helix_gateway::worker_pool::WorkerPool;
@@ -109,6 +110,7 @@ impl HelixGateway {
             .route("/graphvis", get(graphvis::graphvis_handler))
             .route("/introspect", get(introspect_schema_handler))
             .route("/node-connections", get(node_connections_handler))
+            .route("/node-details", get(node_details_handler))
             .route("/nodes-by-label", get(nodes_by_label_handler))
             .route("/nodes-edges", get(nodes_edges_handler))
             .with_state(Arc::new(AppState {

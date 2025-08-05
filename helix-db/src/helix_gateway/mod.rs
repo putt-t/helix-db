@@ -4,6 +4,7 @@ mod graphvis;
 pub mod introspect_schema;
 pub mod mcp;
 pub mod node_connections;
+pub mod node_details;
 pub mod nodes_by_label;
 pub mod nodes_edges;
 pub mod router;
